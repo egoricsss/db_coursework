@@ -1,39 +1,22 @@
-import React, { useState, useEffect } from 'react'
-import { apiService } from '../../services/api'
-import { 
-  Database, 
-  Users, 
-  Cpu, 
-  Activity 
-} from 'lucide-react'
+import React, { useContext } from 'react'
+import { AppContext } from '../../App'
 import './Dashboard.css'
 
+// Иконки для замены lucide-react
+const Database = () => <span>🗄️</span>
+const Users = () => <span>👥</span>
+const Settings = () => <span>⚙️</span>
+const Activity = () => <span>📈</span>
+
 const Dashboard = () => {
-  const [stats, setStats] = useState(null)
-  const [shardsInfo, setShardsInfo] = useState(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    loadDashboardData()
-  }, [])
-
-  const loadDashboardData = async () => {
-    try {
-      const [statsData, shardsData] = await Promise.all([
-        apiService.getUserStats(),
-        apiService.getShardsInfo()
-      ])
-      setStats(statsData)
-      setShardsInfo(shardsData)
-    } catch (error) {
-      console.error('Error loading dashboard data:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
+  const { globalStats, loading } = useContext(AppContext)
 
   if (loading) {
     return <div className="loading">Загрузка данных...</div>
+  }
+
+  if (!globalStats) {
+    return <div className="loading">Нет данных для отображения</div>
   }
 
   return (
@@ -45,25 +28,25 @@ const Dashboard = () => {
 
       <div className="stats-grid">
         <StatCard
-          icon={<Database size={24} />}
+          icon={<Database />}
           title="Всего шардов"
-          value={shardsInfo?.total_shards || 0}
+          value={globalStats.shards?.total_shards || 0}
           color="#3b82f6"
         />
         <StatCard
-          icon={<Users size={24} />}
+          icon={<Users />}
           title="Всего пользователей"
-          value={stats?.total_users || 0}
+          value={globalStats.users?.total_users || 0}
           color="#10b981"
         />
         <StatCard
-          icon={<Cpu size={24} />}
+          icon={<Settings />}
           title="Текущая стратегия"
-          value={stats?.strategy || 'hash'}
+          value={globalStats.shards?.current_strategy || 'hash'}
           color="#f59e0b"
         />
         <StatCard
-          icon={<Activity size={24} />}
+          icon={<Activity />}
           title="Статус системы"
           value="Активна"
           color="#ef4444"
@@ -74,7 +57,7 @@ const Dashboard = () => {
         <div className="shards-distribution">
           <h3>Распределение пользователей по шардам</h3>
           <div className="distribution-chart">
-            {stats?.users_per_shard && Object.entries(stats.users_per_shard).map(([shard, count]) => (
+            {globalStats.users?.users_per_shard && Object.entries(globalStats.users.users_per_shard).map(([shard, count]) => (
               <div key={shard} className="shard-bar">
                 <div className="shard-info">
                   <span>{shard}</span>
@@ -84,7 +67,7 @@ const Dashboard = () => {
                   <div 
                     className="bar-fill"
                     style={{ 
-                      width: `${(count / stats.total_users) * 100}%`,
+                      width: `${(count / globalStats.users.total_users) * 100}%`,
                       backgroundColor: getShardColor(shard)
                     }}
                   ></div>
@@ -97,9 +80,9 @@ const Dashboard = () => {
         <div className="system-info">
           <h3>Информация о системе</h3>
           <div className="info-grid">
-            <InfoItem label="Текущая стратегия" value={stats?.strategy} />
-            <InfoItem label="Всего операций" value="Загрузка..." />
-            <InfoItem label="Среднее время ответа" value="Загрузка..." />
+            <InfoItem label="Текущая стратегия" value={globalStats.shards?.current_strategy || 'Unknown'} />
+            <InfoItem label="Всего шардов" value={globalStats.shards?.total_shards || 0} />
+            <InfoItem label="Всего пользователей" value={globalStats.users?.total_users || 0} />
             <InfoItem label="Статус базы данных" value="Активна" />
           </div>
         </div>
