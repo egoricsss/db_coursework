@@ -1,12 +1,21 @@
 import React, { useState, useEffect, useContext } from 'react'
 import { AppContext } from '../../App'
+import { useStrategies } from '../../hooks/useApi'
 import './StrategyManager.css'
 
 const StrategyManager = () => {
-  const { api, globalStats } = useContext(AppContext)
+  const { globalStats } = useContext(AppContext)
   const [currentStrategy, setCurrentStrategy] = useState('')
-  const [loading, setLoading] = useState(false)
   const [changeHistory, setChangeHistory] = useState([])
+  
+  // Используем кастомные хуки для работы со стратегиями
+  const { 
+    loading, 
+    error, 
+    setStrategy, 
+    getCurrentStrategy, 
+    clearError 
+  } = useStrategies()
 
   useEffect(() => {
     loadCurrentStrategy()
@@ -15,8 +24,8 @@ const StrategyManager = () => {
 
   const loadCurrentStrategy = async () => {
     try {
-      const response = await api.getCurrentStrategy()
-      setCurrentStrategy(response.current_strategy)
+      const response = await getCurrentStrategy()
+      setCurrentStrategy(response.current_strategy || response.name || 'hash')
     } catch (error) {
       console.error('Error loading strategy:', error)
     }
@@ -35,9 +44,8 @@ const StrategyManager = () => {
   const changeStrategy = async (newStrategy) => {
     if (newStrategy === currentStrategy) return
     
-    setLoading(true)
     try {
-      await api.setStrategy(newStrategy)
+      await setStrategy(newStrategy)
       setCurrentStrategy(newStrategy)
       
       // Add to change history
@@ -49,11 +57,10 @@ const StrategyManager = () => {
         user: 'admin'
       }, ...prev])
       
+      clearError()
     } catch (error) {
       console.error('Error changing strategy:', error)
-      alert('Failed to change strategy')
-    } finally {
-      setLoading(false)
+      // Ошибка уже обрабатывается в хуке
     }
   }
 
@@ -79,6 +86,13 @@ const StrategyManager = () => {
         bestFor: ['Categorical data', 'Geographic distribution', 'Logical grouping'],
         performance: 'Good for category-based queries',
         limitations: ['Uneven distribution', 'Fixed categories']
+      },
+      directory: {
+        name: 'Directory Sharding',
+        description: 'Uses lookup table for shard mapping',
+        bestFor: ['Flexible shard mapping', 'Frequent rebalancing', 'Complex relationships'],
+        performance: 'Good for flexible distribution',
+        limitations: ['Lookup overhead', 'Single point of failure']
       }
     }
     return strategies[strategy] || {}
@@ -90,6 +104,14 @@ const StrategyManager = () => {
         <h1>Sharding Strategy Manager</h1>
         <p>Configure and manage data distribution strategies across PostgreSQL shards</p>
       </header>
+
+      {/* Отображение ошибок из хука */}
+      {error && (
+        <div className="error-message">
+          <span>Error: {error.message}</span>
+          <button onClick={clearError}>×</button>
+        </div>
+      )}
 
       {/* Current Strategy */}
       <div className="current-strategy-section">
@@ -110,7 +132,7 @@ const StrategyManager = () => {
       <div className="strategy-selection">
         <h2>Available Strategies</h2>
         <div className="strategies-grid">
-          {['hash', 'range', 'list'].map((strategy) => (
+          {['hash', 'range', 'list', 'directory'].map((strategy) => (
             <div 
               key={strategy} 
               className={`strategy-card ${currentStrategy === strategy ? 'active' : ''}`}
@@ -139,6 +161,14 @@ const StrategyManager = () => {
                   <strong>Performance:</strong>
                   <span>{getStrategyInfo(strategy).performance}</span>
                 </div>
+                <div className="limitations">
+                  <strong>Limitations:</strong>
+                  <ul>
+                    {getStrategyInfo(strategy).limitations.map((item, index) => (
+                      <li key={index}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
               </div>
 
               <button
@@ -153,6 +183,33 @@ const StrategyManager = () => {
           ))}
         </div>
       </div>
+
+      {/* Performance Metrics */}
+      {globalStats && (
+        <div className="performance-metrics">
+          <h2>Performance Metrics</h2>
+          <div className="metrics-grid">
+            <div className="metric-card">
+              <h4>Response Time</h4>
+              <div className="metric-value">
+                {globalStats.metrics?.average_response_time?.[currentStrategy] || 'N/A'}
+              </div>
+            </div>
+            <div className="metric-card">
+              <h4>Success Rate</h4>
+              <div className="metric-value">
+                {globalStats.metrics?.success_rate?.[currentStrategy] || 'N/A'}
+              </div>
+            </div>
+            <div className="metric-card">
+              <h4>Operations</h4>
+              <div className="metric-value">
+                {globalStats.metrics?.operations?.[currentStrategy]?.length || 0}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Change History */}
       <div className="change-history">
@@ -173,6 +230,54 @@ const StrategyManager = () => {
               </div>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Strategy Comparison */}
+      <div className="strategy-comparison">
+        <h2>Strategy Comparison</h2>
+        <div className="comparison-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Strategy</th>
+                <th>Data Distribution</th>
+                <th>Query Performance</th>
+                <th>Scalability</th>
+                <th>Complexity</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Hash</td>
+                <td>Uniform</td>
+                <td>Excellent point queries</td>
+                <td>Good</td>
+                <td>Low</td>
+              </tr>
+              <tr>
+                <td>Range</td>
+                <td>Sequential</td>
+                <td>Excellent range queries</td>
+                <td>Medium</td>
+                <td>Medium</td>
+              </tr>
+              <tr>
+                <td>List</td>
+                <td>Categorical</td>
+                <td>Good for categories</td>
+                <td>Medium</td>
+                <td>Medium</td>
+              </tr>
+              <tr>
+                <td>Directory</td>
+                <td>Flexible</td>
+                <td>Good with caching</td>
+                <td>High</td>
+                <td>High</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

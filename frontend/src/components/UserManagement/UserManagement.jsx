@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react'
-import { apiService } from '../../services/api'
 import { Plus, Search, User, Mail, Key } from 'lucide-react'
+import { useUsers } from '../../hooks/useApi'
 import './UserManagement.css'
 
 const UserManagement = () => {
   const [users, setUsers] = useState([])
-  const [loading, setLoading] = useState(false)
   const [searchKey, setSearchKey] = useState('')
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [newUser, setNewUser] = useState({
@@ -15,37 +14,47 @@ const UserManagement = () => {
     shard_key: ''
   })
 
+  const { 
+    loading, 
+    error, 
+    createUser, 
+    getUsersByShardKey, 
+    clearError 
+  } = useUsers()
+
+  // Загрузка пользователей при изменении searchKey
   useEffect(() => {
     if (searchKey) {
       loadUsersByKey(searchKey)
+    } else {
+      setUsers([]) // Очищаем список если поисковый ключ пустой
     }
   }, [searchKey])
 
   const loadUsersByKey = async (shardKey) => {
-    setLoading(true)
     try {
-      const data = await apiService.getUsersByShardKey(shardKey)
+      const data = await getUsersByShardKey(shardKey)
       setUsers(data)
     } catch (error) {
       console.error('Error loading users:', error)
       setUsers([])
-    } finally {
-      setLoading(false)
     }
   }
 
   const handleCreateUser = async (e) => {
     e.preventDefault()
     try {
-      await apiService.createUser(newUser)
+      await createUser(newUser)
       setShowCreateForm(false)
       setNewUser({ username: '', email: '', full_name: '', shard_key: '' })
+      
+      // Обновляем список если есть активный поиск
       if (searchKey) {
-        loadUsersByKey(searchKey)
+        await loadUsersByKey(searchKey)
       }
     } catch (error) {
       console.error('Error creating user:', error)
-      alert('Ошибка при создании пользователя')
+      // Ошибка уже обрабатывается в хуке, можно показать дополнительное уведомление
     }
   }
 
@@ -63,6 +72,14 @@ const UserManagement = () => {
         <p>Создание и поиск пользователей в системе шардирования</p>
       </header>
 
+      {/* Отображение ошибок из хука */}
+      {error && (
+        <div className="error-message">
+          <span>Ошибка: {error.message}</span>
+          <button onClick={clearError}>×</button>
+        </div>
+      )}
+
       <div className="user-actions">
         <div className="search-section">
           <div className="search-box">
@@ -72,6 +89,7 @@ const UserManagement = () => {
               placeholder="Введите ключ шардирования для поиска..."
               value={searchKey}
               onChange={(e) => setSearchKey(e.target.value)}
+              disabled={loading}
             />
           </div>
         </div>
@@ -79,9 +97,10 @@ const UserManagement = () => {
         <button 
           className="create-user-btn"
           onClick={() => setShowCreateForm(true)}
+          disabled={loading}
         >
           <Plus size={20} />
-          Создать пользователя
+          {loading ? 'Загрузка...' : 'Создать пользователя'}
         </button>
       </div>
 
@@ -98,6 +117,7 @@ const UserManagement = () => {
                   value={newUser.username}
                   onChange={(e) => handleInputChange('username', e.target.value)}
                   required
+                  disabled={loading}
                 />
               </div>
               
@@ -109,6 +129,7 @@ const UserManagement = () => {
                   value={newUser.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
                   required
+                  disabled={loading}
                 />
               </div>
               
@@ -118,6 +139,7 @@ const UserManagement = () => {
                   placeholder="Полное имя (опционально)"
                   value={newUser.full_name}
                   onChange={(e) => handleInputChange('full_name', e.target.value)}
+                  disabled={loading}
                 />
               </div>
               
@@ -129,15 +151,23 @@ const UserManagement = () => {
                   value={newUser.shard_key}
                   onChange={(e) => handleInputChange('shard_key', e.target.value)}
                   required
+                  disabled={loading}
                 />
               </div>
 
               <div className="form-actions">
-                <button type="button" onClick={() => setShowCreateForm(false)}>
+                <button 
+                  type="button" 
+                  onClick={() => setShowCreateForm(false)}
+                  disabled={loading}
+                >
                   Отмена
                 </button>
-                <button type="submit">
-                  Создать
+                <button 
+                  type="submit" 
+                  disabled={loading}
+                >
+                  {loading ? 'Создание...' : 'Создать'}
                 </button>
               </div>
             </form>
