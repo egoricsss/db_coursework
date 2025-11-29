@@ -103,20 +103,6 @@ services:
       - ./backend/app:/app
     restart: unless-stopped
 
-  # Frontend React service
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: sharding-frontend
-    ports:
-      - "3000:80"
-    depends_on:
-      - backend
-    networks:
-      - shard-network
-    restart: unless-stopped
-
 volumes:
   postgres_shard1_data:
   postgres_shard2_data:
